@@ -49,7 +49,7 @@
 #define EEPROM_ReadBit 1
 #define I2C_TIMEOUT 1000
 #define NUM_ADC_CHANNELS 2
-#define Min_threshold 1200 //1200
+#define Min_threshold 2000 //1200
 #define Max_threshold 3900
 #define Data_3mV   0x40u  // B register (PB6)
 #define Data_10mV  0x80u  // C register (PC7)
@@ -71,10 +71,10 @@
 /* USER CODE BEGIN PV */
 uint8_t TxBuffer[20];
 uint8_t RxBuffer[20];
-float coefficients_rms[9];
-float coefficients_ampl[9];
-float amplitude = 100.255689;
-float rms = 1.2568;
+float coefficients_rms[9] = {0.001, 0.003333, 0.01, 0.033333, 0.1, 0.333333, 1, 3.333333};
+float coefficients_ampl[9] = {0.0015, 0.005, 0.015, 0.05, 0.15, 0.5, 1.5, 5};
+double amplitude = 100.255689;
+double rms = 1.2568;
 uint16_t ADC_data[3] = {100, 250, 0};
 uint16_t Sample_ampl = 0;
 uint16_t Sample_RMS = 0;
@@ -119,8 +119,8 @@ void ReadCoefficients(void)
 {
 	for(int i=0; i<9; i++)
 	{
-		coefficients_rms[i] = 1;
-		coefficients_ampl[i] = 1;
+		//coefficients_rms[i] = 1;
+		//coefficients_ampl[i] = 1;
 	}
 }
 
@@ -169,8 +169,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	
 void statechart_processData(Statechart* handle)
 {
-	amplitude = Sample_ampl*coefficients_ampl[range_nr_ampl]*3.3/4.096;
-	rms = Sample_RMS*coefficients_rms[range_nr_rms]*3.3/4.096;
+	amplitude = Sample_ampl*coefficients_ampl[range_nr_ampl]*3300/4095;
+	rms = Sample_RMS*coefficients_rms[range_nr_rms]*3300/4095;
 }
 
 sc_integer statechart_readADCSample( Statechart* handle, const sc_integer channel)
