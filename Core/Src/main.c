@@ -151,22 +151,19 @@ void ScanForDev(void)
 	}*/
 }
 
+void WriteCoefficientToEEPROM(float data_to_write, uint8_t page_num)
+{
+	EEPROM_Write_NUM(page_num, 0, data_to_write);
+}
+
+void Erase_EEPROM(void)
+{
+	for (int i=0; i<512; i++)
+	  EEPROM_PageErase(i);
+}
+
 void ReadCoefficients(void)
 {
-	/*for (int i=0; i<512; i++)
-  {
-	  EEPROM_PageErase(i);
-  }*/
-	/*for(int i=0; i<8; i++)
-	{
-		EEPROM_Write_NUM(i, 0, coefficients_rms[i]);
-		EEPROM_Write_NUM(i+8, 0, coefficients_ampl[i]);
-	}
-	for(int i=0; i<8; i++)
-	{
-		coefficients_rms[i] = 0;
-		coefficients_ampl[i] = 0;
-	}*/
 	for(int i=0; i<8; i++)
 	{
 		coefficients_rms[i] = EEPROM_Read_NUM(i, 0);
