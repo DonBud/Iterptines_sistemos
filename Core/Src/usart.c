@@ -25,7 +25,6 @@
 /* USER CODE END 0 */
 
 UART_HandleTypeDef huart2;
-UART_HandleTypeDef huart4;
 
 /* USART2 init function */
 
@@ -58,37 +57,6 @@ void MX_USART2_UART_Init(void)
   /* USER CODE END USART2_Init 2 */
 
 }
-/* USART4 init function */
-
-void MX_USART4_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART4_Init 0 */
-
-  /* USER CODE END USART4_Init 0 */
-
-  /* USER CODE BEGIN USART4_Init 1 */
-
-  /* USER CODE END USART4_Init 1 */
-  huart4.Instance = USART4;
-  huart4.Init.BaudRate = 115200;
-  huart4.Init.WordLength = UART_WORDLENGTH_8B;
-  huart4.Init.StopBits = UART_STOPBITS_1;
-  huart4.Init.Parity = UART_PARITY_NONE;
-  huart4.Init.Mode = UART_MODE_TX_RX;
-  huart4.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart4.Init.OverSampling = UART_OVERSAMPLING_16;
-  huart4.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart4.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart4) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART4_Init 2 */
-
-  /* USER CODE END USART4_Init 2 */
-
-}
 
 void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
 {
@@ -118,30 +86,6 @@ void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
 
   /* USER CODE END USART2_MspInit 1 */
   }
-  else if(uartHandle->Instance==USART4)
-  {
-  /* USER CODE BEGIN USART4_MspInit 0 */
-
-  /* USER CODE END USART4_MspInit 0 */
-    /* USART4 clock enable */
-    __HAL_RCC_USART4_CLK_ENABLE();
-
-    __HAL_RCC_GPIOC_CLK_ENABLE();
-    /**USART4 GPIO Configuration
-    PC10     ------> USART4_TX
-    PC11     ------> USART4_RX
-    */
-    GPIO_InitStruct.Pin = GPIO_PIN_10|GPIO_PIN_11;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-    GPIO_InitStruct.Alternate = GPIO_AF6_USART4;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-  /* USER CODE BEGIN USART4_MspInit 1 */
-
-  /* USER CODE END USART4_MspInit 1 */
-  }
 }
 
 void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
@@ -164,24 +108,6 @@ void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
   /* USER CODE BEGIN USART2_MspDeInit 1 */
 
   /* USER CODE END USART2_MspDeInit 1 */
-  }
-  else if(uartHandle->Instance==USART4)
-  {
-  /* USER CODE BEGIN USART4_MspDeInit 0 */
-
-  /* USER CODE END USART4_MspDeInit 0 */
-    /* Peripheral clock disable */
-    __HAL_RCC_USART4_CLK_DISABLE();
-
-    /**USART4 GPIO Configuration
-    PC10     ------> USART4_TX
-    PC11     ------> USART4_RX
-    */
-    HAL_GPIO_DeInit(GPIOC, GPIO_PIN_10|GPIO_PIN_11);
-
-  /* USER CODE BEGIN USART4_MspDeInit 1 */
-
-  /* USER CODE END USART4_MspDeInit 1 */
   }
 }
 

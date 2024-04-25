@@ -32,6 +32,7 @@
 #include <stdio.h> // funkcijai sprintf
 #include "Statechart.h"
 #include "Statechart_required.h"
+#include "EEPROM.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -42,15 +43,15 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define OLED_adress 0x78
-#define EEPROM_adress 0xB0
+#define EEPROM_adress 0xA0
 #define Vref 3.3
 #define N 4096
 #define EEPROM_WriteBit 0
 #define EEPROM_ReadBit 1
-#define I2C_TIMEOUT 1000
+#define I2C_TIMEOUT 100000
 #define NUM_ADC_CHANNELS 2
-#define Min_threshold 2000 //1200
-#define Max_threshold 3900
+#define Min_threshold 800 //1200
+#define Max_threshold 3900 // 3900
 #define Data_3mV   0x40u  // B register (PB6)
 #define Data_10mV  0x80u  // C register (PC7)
 #define Data_30mV  0x400u // B register (PB10)
@@ -69,10 +70,15 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-uint8_t TxBuffer[20];
-uint8_t RxBuffer[20];
-float coefficients_rms[9] = {0.001, 0.003333, 0.01, 0.033333, 0.1, 0.333333, 1, 3.333333};
-float coefficients_ampl[9] = {0.0015, 0.005, 0.015, 0.05, 0.15, 0.5, 1.5, 5};
+uint8_t counter = 1;
+float data_write = 12.5;
+float rerad = 0;
+uint8_t TxBuffer[30];
+uint8_t RxBuffer[30];
+uint8_t adresses[256];
+uint8_t DevAddr[256];
+float coefficients_rms[8];// = {0.001, 0.003333, 0.01, 0.033333, 0.1, 0.333333, 1, 3.333333};
+float coefficients_ampl[8];// = {0.0015, 0.005, 0.015, 0.05, 0.15, 0.5, 1.5, 5};
 double amplitude = 100.255689;
 double rms = 1.2568;
 uint16_t ADC_data[3] = {100, 250, 0};
@@ -80,6 +86,9 @@ uint16_t Sample_ampl = 0;
 uint16_t Sample_RMS = 0;
 int range_nr_ampl = 7;
 int range_nr_rms = 7;
+int range_nr = 7;
+int range_nr_conversion = 7;
+int previous_range_nr = 7;
 short Pins[9]={Data_3mV, Data_10mV, Data_30mV, Data_100mV, Data_300mV, Data_1V, Data_3V, Data_10V};
 /* USER CODE END PV */
 
@@ -101,7 +110,7 @@ void ChangePinState(int nr, char function[4])
 			GPIOC->ODR&=~(Pins[nr]);
 		else if((nr == 0) || (nr == 2) || (nr == 3))
 			GPIOB->ODR&=~(Pins[nr]);
-		else
+		else if((nr == 4) || (nr == 5) || (nr == 6) || (nr == 7))
 			GPIOA->ODR&=~(Pins[nr]);
 	}
 	else if(strcmp(function,"OFF")==0)
@@ -110,18 +119,60 @@ void ChangePinState(int nr, char function[4])
 			GPIOC->ODR|=Pins[nr];
 		else if((nr == 0) || (nr == 2) || (nr == 3))
 			GPIOB->ODR|=Pins[nr];
-		else
+		else if((nr == 4) || (nr == 5) || (nr == 6) || (nr == 7))
 			GPIOA->ODR|=Pins[nr];
 	}
 }
 
+void ScanForDev(void)
+{
+	for(int i=0;i<256;i++) {
+		DevAddr[i]=0;
+	} 
+	for(int i=0;i<256;i++) {
+		adresses[i]=i;
+	} 
+	uint8_t i = 0;
+	for(int j=0;j<256;j++) {
+		if(HAL_I2C_IsDeviceReady(&hi2c3,(adresses[j]<<1),1,10)==HAL_OK) {
+			DevAddr[i]=adresses[j]<<1;
+			i++;
+		}	
+	}/*
+	for(int i=0;i<256;i++) {
+		for(int j=0;j<256;j++) {
+			if(DevAddr[j]<DevAddr[i] && DevAddr[j]!=0) {
+				uint8_t tmp=0;
+				tmp=DevAddr[i];
+				DevAddr[i]=DevAddr[j];
+				DevAddr[j]=tmp;
+			}
+		}	
+	}*/
+}
+
 void ReadCoefficients(void)
 {
-	for(int i=0; i<9; i++)
+	/*for (int i=0; i<512; i++)
+  {
+	  EEPROM_PageErase(i);
+  }*/
+	/*for(int i=0; i<8; i++)
 	{
-		//coefficients_rms[i] = 1;
-		//coefficients_ampl[i] = 1;
+		EEPROM_Write_NUM(i, 0, coefficients_rms[i]);
+		EEPROM_Write_NUM(i+8, 0, coefficients_ampl[i]);
 	}
+	for(int i=0; i<8; i++)
+	{
+		coefficients_rms[i] = 0;
+		coefficients_ampl[i] = 0;
+	}*/
+	for(int i=0; i<8; i++)
+	{
+		coefficients_rms[i] = EEPROM_Read_NUM(i, 0);
+		coefficients_ampl[i] = EEPROM_Read_NUM(i+8, 0);
+	}
+	__ASM("NOP");
 }
 
 void SendUARTData()
@@ -141,14 +192,26 @@ void statechart_displayInfo(Statechart* handle)
 		//sprintf(string_display,"T0=%d.%dC",(int)AverageSensorI2C,(int)((AverageSensorI2C-
 		ssd1306_WriteString(string_display,Font_11x18, White);
 		// Display analog sensors readings
-		ssd1306_SetCursor(40, 18); // ssd1306_SetCursor(0, 14);
-		sprintf(string_display,"%.2f mV", amplitude);
+		ssd1306_SetCursor(40, 18); // ssd1306_SetCursor(40, 18);
+		if(rms >= 1000)
+		{
+			rms /= 1000;
+			sprintf(string_display,"%.2f V", rms);
+		}
+		else
+			sprintf(string_display,"%.2f mV", rms);
 		ssd1306_WriteString(string_display,Font_7x10, White);
-		ssd1306_SetCursor(0, 37); // ssd1306_SetCursor(0, 14);
+		ssd1306_SetCursor(0, 37); // ssd1306_SetCursor(0, 37);
 		sprintf(string_display,"A");
 	  ssd1306_WriteString(string_display,Font_11x18, White);
-		ssd1306_SetCursor(40, 40); // ssd1306_SetCursor(0, 14);
-		sprintf(string_display,"%.2f mV", rms);
+		ssd1306_SetCursor(40, 40); // ssd1306_SetCursor(40, 40);
+		if(amplitude >= 1000)
+		{
+			amplitude /= 1000;
+			sprintf(string_display,"%.2f V", amplitude);
+		}
+		else
+			sprintf(string_display,"%.2f mV", amplitude);
 	  ssd1306_WriteString(string_display,Font_7x10, White);
 		// Copy all data from local screenbuffer to the screen
 		ssd1306_UpdateScreen(&hi2c3);
@@ -164,50 +227,98 @@ void statechart_sendData(Statechart* handle)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	{
 		 if(htim==&htim6)
-				statechart_raise_ev_GetSample(&sc_handle); //raise event TimerIntr in statechart
+		 {
+			 counter++;
+			 if(counter == 1)
+			 {
+				 counter =  0;
+					statechart_raise_ev_GetSample(&sc_handle); //raise event TimerIntr in statechart
+			 }
+		 }
 	}
 	
 void statechart_processData(Statechart* handle)
 {
-	amplitude = Sample_ampl*coefficients_ampl[range_nr_ampl]*3300/4095;
-	rms = Sample_RMS*coefficients_rms[range_nr_rms]*3300/4095;
+	amplitude = Sample_ampl*coefficients_ampl[range_nr_conversion]*3300/4095;
+	rms = Sample_RMS*coefficients_rms[range_nr_conversion]*3300/4095;
 }
 
 sc_integer statechart_readADCSample( Statechart* handle, const sc_integer channel)
 {
-	if (ADC_data[channel] > Max_threshold) // read from DMA memory when all channels are sampled
+	if(channel == 0)
+	{
+		range_nr_conversion = range_nr;
+		Sample_ampl = ADC_data[0];
+		if(Sample_ampl > Max_threshold)
+			range_nr_ampl++;
+		else if(Sample_ampl < Min_threshold)
+			range_nr_ampl--;
+		if(range_nr_ampl < 0)
+			range_nr_ampl = 0;
+		else if(range_nr_ampl > 7)
+			range_nr_ampl = 7;
+		statechart_raise_ev_GoodSample(&sc_handle);
+	}
+	else if(channel == 1)
+	{
+		//ChangePinState(range_nr, "OFF");
+		Sample_RMS = ADC_data[1];
+		if(Sample_RMS > Max_threshold)
+			range_nr_rms++;
+		else if(Sample_RMS < Min_threshold)
+			range_nr_rms--;
+		if(range_nr_rms < 0)
+			range_nr_rms = 0;
+		else if(range_nr_rms > 7)
+			range_nr_rms = 7;
+		if(range_nr_ampl > range_nr_rms)
+			range_nr = range_nr_ampl;
+		else if(range_nr_rms >= range_nr_ampl)
+			range_nr = range_nr_rms;
+		if(previous_range_nr != range_nr)
+		{
+			ChangePinState(previous_range_nr, "OFF");
+			ChangePinState(range_nr, "ON");
+		}
+		statechart_raise_ev_GoodSample(&sc_handle);
+		range_nr_ampl = range_nr;
+		range_nr_rms = range_nr;
+		previous_range_nr = range_nr;
+	}
+	
+	/*if (ADC_data[channel] > Max_threshold) // read from DMA memory when all channels are sampled
 	{
 		if(channel == 0)
 		{
 			ChangePinState(range_nr_ampl, "OFF");
+			//Sample_ampl = ADC_data[0];
 			range_nr_ampl++;
 			if(range_nr_ampl>7)
 			{
 				range_nr_ampl=7;
-				ChangePinState(range_nr_ampl, "ON");
-				range_nr_rms = range_nr_ampl;
-				Sample_ampl = ADC_data[0];
-				statechart_raise_ev_GoodSample(&sc_handle);
+				//ChangePinState(range_nr_ampl, "ON");
+				//Sample_ampl = ADC_data[0];
+				//statechart_raise_ev_GoodSample(&sc_handle);
 			}
-			else
-				ChangePinState(range_nr_ampl, "ON");
-			range_nr_rms = range_nr_ampl;
+			//else
+				//ChangePinState(range_nr_ampl, "ON");
 		}
 		else
 		{
 			ChangePinState(range_nr_rms, "OFF");
 			range_nr_rms++;
+			//Sample_RMS = ADC_data[1];
 			if(range_nr_rms>7)
 			{
 				range_nr_rms=7;
-				ChangePinState(range_nr_rms, "ON");
-				Sample_RMS = ADC_data[1];
-				statechart_raise_ev_GoodSample(&sc_handle);
+				//ChangePinState(range_nr_rms, "ON");
+				//Sample_RMS = ADC_data[1];
+				//statechart_raise_ev_GoodSample(&sc_handle);
 			}
-			else
-				ChangePinState(range_nr_rms, "ON");
+			//else
+				//ChangePinState(range_nr_rms, "ON");
 		}
-		statechart_raise_ev_ResetSample(&sc_handle);
+		//statechart_raise_ev_ResetSample(&sc_handle);
 	}
 	else if((ADC_data[channel] < Min_threshold))
 	{
@@ -215,29 +326,29 @@ sc_integer statechart_readADCSample( Statechart* handle, const sc_integer channe
 		{
 			ChangePinState(range_nr_ampl, "OFF");
 			range_nr_ampl--;
+			//Sample_ampl = ADC_data[0];
 			if(range_nr_ampl < 0)
 			{
 				range_nr_ampl=0;
-				ChangePinState(range_nr_ampl, "ON");
-				range_nr_rms = range_nr_ampl;
-				Sample_ampl = ADC_data[0];
-				statechart_raise_ev_GoodSample(&sc_handle);
+				//ChangePinState(range_nr_ampl, "ON");
+				//Sample_ampl = ADC_data[0];
+				//statechart_raise_ev_GoodSample(&sc_handle);
 			}
-			ChangePinState(range_nr_ampl, "ON");
-			range_nr_rms = range_nr_ampl;
+			//ChangePinState(range_nr_ampl, "ON");
 		}
 		else
 		{
 			ChangePinState(range_nr_rms, "OFF");
 			range_nr_rms--;
+			//Sample_RMS = ADC_data[1];
 			if(range_nr_rms < 0)
 			{
 				range_nr_rms=0;
-				ChangePinState(range_nr_rms, "ON");
-				Sample_RMS = ADC_data[1];
-				statechart_raise_ev_GoodSample(&sc_handle);
+				//ChangePinState(range_nr_rms, "ON");
+				//Sample_RMS = ADC_data[1];
+				//statechart_raise_ev_GoodSample(&sc_handle);
 			}
-			ChangePinState(range_nr_rms, "ON");
+			//ChangePinState(range_nr_rms, "ON");
 		}
 		statechart_raise_ev_ResetSample(&sc_handle);
 	}
@@ -248,7 +359,7 @@ sc_integer statechart_readADCSample( Statechart* handle, const sc_integer channe
 		else
 			Sample_RMS = ADC_data[1];
 		statechart_raise_ev_GoodSample(&sc_handle);
-	}
+	}*/
  return 1;
 }
 
@@ -299,9 +410,9 @@ int main(void)
   MX_DMA_Init();
   MX_TIM6_Init();
   MX_I2C3_Init();
-  MX_USART4_UART_Init();
   MX_ADC_Init();
   MX_USART2_UART_Init();
+	GPIOA->ODR&=~(Pins[7]);
   /* USER CODE BEGIN 2 */
 	ssd1306_Init(&hi2c3);
   // Write data to local screenbuffer
@@ -312,6 +423,7 @@ int main(void)
 	// Copy all data from local screenbuffer to the screen
 	ssd1306_UpdateScreen(&hi2c3);
 	ReadCoefficients();
+	ScanForDev();
   //displayInfo();
 	statechart_init(&sc_handle); //inicializuoti busenu automata
 	statechart_enter(&sc_handle);
