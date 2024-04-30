@@ -33,6 +33,8 @@
 #include "Statechart.h"
 #include "Statechart_required.h"
 #include "EEPROM.h"
+#include <string.h>
+#include <stdlib.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -48,9 +50,9 @@
 #define N 4096
 #define EEPROM_WriteBit 0
 #define EEPROM_ReadBit 1
-#define I2C_TIMEOUT 100000
+#define I2C_TIMEOUT 1000
 #define NUM_ADC_CHANNELS 2
-#define Min_threshold 800 //1200
+#define Min_threshold 1200 //1200
 #define Max_threshold 3900 // 3900
 #define Data_3mV   0x40u  // B register (PB6)
 #define Data_10mV  0x80u  // C register (PC7)
@@ -70,15 +72,17 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-uint8_t counter = 1;
+uint8_t LetChangeData = 0;
+int PIN = 0;// = 1234;
 float data_write = 12.5;
 float rerad = 0;
-uint8_t TxBuffer[30];
-uint8_t RxBuffer[30];
-uint8_t adresses[256];
-uint8_t DevAddr[256];
-float coefficients_rms[8];// = {0.001, 0.003333, 0.01, 0.033333, 0.1, 0.333333, 1, 3.333333};
-float coefficients_ampl[8];// = {0.0015, 0.005, 0.015, 0.05, 0.15, 0.5, 1.5, 5};
+uint8_t TxBuffer[150];
+uint8_t RxBuffer[150];
+//uint8_t adresses[256];
+//uint8_t DevAddr[256];
+uint8_t TransmitStatus = 1;
+float coefficients_rms[8]; // = {0.001, 0.003333, 0.01, 0.033333, 0.1, 0.333333, 1, 3.333333};
+float coefficients_ampl[8]; // = {0.0015, 0.005, 0.015, 0.05, 0.15, 0.5, 1.5, 5};
 double amplitude = 100.255689;
 double rms = 1.2568;
 uint16_t ADC_data[3] = {100, 250, 0};
@@ -90,6 +94,8 @@ int range_nr = 7;
 int range_nr_conversion = 7;
 int previous_range_nr = 7;
 short Pins[9]={Data_3mV, Data_10mV, Data_30mV, Data_100mV, Data_300mV, Data_1V, Data_3V, Data_10V};
+uint8_t Asterisk = 0x2A;
+uint8_t NS = 0x23;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -124,7 +130,7 @@ void ChangePinState(int nr, char function[4])
 	}
 }
 
-void ScanForDev(void)
+/*void ScanForDev(void)
 {
 	for(int i=0;i<256;i++) {
 		DevAddr[i]=0;
@@ -138,22 +144,13 @@ void ScanForDev(void)
 			DevAddr[i]=adresses[j]<<1;
 			i++;
 		}	
-	}/*
-	for(int i=0;i<256;i++) {
-		for(int j=0;j<256;j++) {
-			if(DevAddr[j]<DevAddr[i] && DevAddr[j]!=0) {
-				uint8_t tmp=0;
-				tmp=DevAddr[i];
-				DevAddr[i]=DevAddr[j];
-				DevAddr[j]=tmp;
-			}
-		}	
-	}*/
-}
+	}
+}*/
 
 void WriteCoefficientToEEPROM(float data_to_write, uint8_t page_num)
 {
-	EEPROM_Write_NUM(page_num, 0, data_to_write);
+	if(LetChangeData)
+		EEPROM_Write_NUM(page_num, 0, data_to_write);
 }
 
 void Erase_EEPROM(void)
@@ -166,17 +163,13 @@ void ReadCoefficients(void)
 {
 	for(int i=0; i<8; i++)
 	{
+		/*EEPROM_Write_NUM(i, 0, coefficients_rms[i]);
+		EEPROM_Write_NUM(i+8, 0, coefficients_ampl[i]);*/
 		coefficients_rms[i] = EEPROM_Read_NUM(i, 0);
 		coefficients_ampl[i] = EEPROM_Read_NUM(i+8, 0);
 	}
+	PIN = EEPROM_Read_NUM(25, 0);
 	__ASM("NOP");
-}
-
-void SendUARTData()
-{
-	sprintf((char *)TxBuffer,"%.2f/%.2f \n\r",amplitude, rms);
-	HAL_UART_Transmit(&huart2, (uint8_t *)TxBuffer, sizeof(TxBuffer), 1);
-	
 }
 
 void statechart_displayInfo(Statechart* handle)
@@ -218,19 +211,18 @@ void statechart_displayInfo(Statechart* handle)
 	
 void statechart_sendData(Statechart* handle)
 	{
-		SendUARTData();
+		if(TransmitStatus ==1)
+		{
+			sprintf((char *)TxBuffer,"/%.2f/%.2f/ \n\r",amplitude, rms);
+			HAL_UART_Transmit(&huart2, (uint8_t *)TxBuffer, sizeof(TxBuffer), 1);
+		}
 	}
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 	{
 		 if(htim==&htim6)
 		 {
-			 counter++;
-			 if(counter == 1)
-			 {
-				 counter =  0;
-					statechart_raise_ev_GetSample(&sc_handle); //raise event TimerIntr in statechart
-			 }
+				statechart_raise_ev_GetSample(&sc_handle); //raise event TimerIntr in statechart
 		 }
 	}
 	
@@ -282,81 +274,6 @@ sc_integer statechart_readADCSample( Statechart* handle, const sc_integer channe
 		range_nr_rms = range_nr;
 		previous_range_nr = range_nr;
 	}
-	
-	/*if (ADC_data[channel] > Max_threshold) // read from DMA memory when all channels are sampled
-	{
-		if(channel == 0)
-		{
-			ChangePinState(range_nr_ampl, "OFF");
-			//Sample_ampl = ADC_data[0];
-			range_nr_ampl++;
-			if(range_nr_ampl>7)
-			{
-				range_nr_ampl=7;
-				//ChangePinState(range_nr_ampl, "ON");
-				//Sample_ampl = ADC_data[0];
-				//statechart_raise_ev_GoodSample(&sc_handle);
-			}
-			//else
-				//ChangePinState(range_nr_ampl, "ON");
-		}
-		else
-		{
-			ChangePinState(range_nr_rms, "OFF");
-			range_nr_rms++;
-			//Sample_RMS = ADC_data[1];
-			if(range_nr_rms>7)
-			{
-				range_nr_rms=7;
-				//ChangePinState(range_nr_rms, "ON");
-				//Sample_RMS = ADC_data[1];
-				//statechart_raise_ev_GoodSample(&sc_handle);
-			}
-			//else
-				//ChangePinState(range_nr_rms, "ON");
-		}
-		//statechart_raise_ev_ResetSample(&sc_handle);
-	}
-	else if((ADC_data[channel] < Min_threshold))
-	{
-		if(channel == 0)
-		{
-			ChangePinState(range_nr_ampl, "OFF");
-			range_nr_ampl--;
-			//Sample_ampl = ADC_data[0];
-			if(range_nr_ampl < 0)
-			{
-				range_nr_ampl=0;
-				//ChangePinState(range_nr_ampl, "ON");
-				//Sample_ampl = ADC_data[0];
-				//statechart_raise_ev_GoodSample(&sc_handle);
-			}
-			//ChangePinState(range_nr_ampl, "ON");
-		}
-		else
-		{
-			ChangePinState(range_nr_rms, "OFF");
-			range_nr_rms--;
-			//Sample_RMS = ADC_data[1];
-			if(range_nr_rms < 0)
-			{
-				range_nr_rms=0;
-				//ChangePinState(range_nr_rms, "ON");
-				//Sample_RMS = ADC_data[1];
-				//statechart_raise_ev_GoodSample(&sc_handle);
-			}
-			//ChangePinState(range_nr_rms, "ON");
-		}
-		statechart_raise_ev_ResetSample(&sc_handle);
-	}
-	else
-	{
-		if(channel == 0)
-			Sample_ampl = ADC_data[0];
-		else
-			Sample_RMS = ADC_data[1];
-		statechart_raise_ev_GoodSample(&sc_handle);
-	}*/
  return 1;
 }
 
@@ -372,6 +289,109 @@ sc_integer statechart_startConvADC( Statechart* handle, const sc_integer channel
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc)
 {
 	statechart_raise_ev_ADCSampleReady(&sc_handle); //raise event TimerIntr in statechart
+}
+
+void ProcessUARTData(void)
+{
+	char RegisterNr[3];
+	char RegisterData[10];
+	memset(RegisterNr, 0, sizeof(RegisterNr));
+	memset(RegisterData, 0, sizeof(RegisterData));
+	int Nr = 0;
+	uint8_t DataAppr[15];
+	uint8_t Coef[150];
+	float Data = 0;
+	int i = 0;
+	int j = 0;
+	if(RxBuffer[0] == Asterisk)
+		__asm("NOP");
+	else if(RxBuffer[0] == NS)
+	{
+		char* token;
+		token = strtok((char*)RxBuffer, "/");
+		while( token != NULL ) 
+		{
+      token = strtok(NULL, "/");
+			if(i<8)
+			{
+				coefficients_rms[i] = atof(token);
+				//EEPROM_Write_NUM(i, 0, coefficients_rms[i]);
+			}
+			if(i>7 && i<16)
+			{
+				coefficients_ampl[i%8] = atof(token);
+				//EEPROM_Write_NUM(i, 0, atof(token));
+			}
+			i++;
+		}
+		LetChangeData = 0;
+	}
+	else
+	{
+		while(RxBuffer[i]!=0x2F)
+		{
+			RegisterNr[j] = RxBuffer[i];
+			j++;
+			i++;
+		}
+		j = 0;
+		i++;
+		while(RxBuffer[i]!=0x2A)
+		{
+			RegisterData[j] = RxBuffer[i];
+			j++;
+			i++;
+		}
+		/*RegisterNr = strtok((char*)RxBuffer, "/");
+		RegisterData = strtok(NULL, (char*)RxBuffer);
+		RegisterData = strtok(RegisterData, "*");*/
+		if(*RegisterData)
+			Data = atof(RegisterData);
+		if(*RegisterNr)
+			Nr = atof(RegisterNr);
+		/*if(Nr < 8)
+		{
+			coefficients_rms[(int)Nr] = Data;
+			WriteCoefficientToEEPROM(Data, Nr);
+		}
+		else if(Nr > 7 && Nr < 16)
+		{
+			coefficients_ampl[(int)Nr%8] = Data;
+			WriteCoefficientToEEPROM(Data, Nr);
+		}
+		else */
+		if(Nr == 25)
+		{
+			if(Data == PIN)
+			{
+				TransmitStatus = 0;
+				LetChangeData = 1;
+				sprintf((char*)DataAppr, "1#1#/0/0/ \n\r");
+				HAL_UART_Transmit(&huart2, DataAppr, sizeof(DataAppr), 10);
+				memset(Coef, 0, sizeof(Coef));
+				sprintf((char*)Coef, "0/%f/%f/%f/%f/%f/%f/%f/%f/%f/%f/%f/%f/%f/%f/%f/%f/ \n", coefficients_rms[0], 
+					coefficients_rms[1], coefficients_rms[2], coefficients_rms[3], coefficients_rms[4], coefficients_rms[5], coefficients_rms[6], 
+				coefficients_rms[7], coefficients_ampl[0], coefficients_ampl[1], coefficients_ampl[2], coefficients_ampl[3], coefficients_ampl[4], 
+				coefficients_ampl[5], coefficients_ampl[6], coefficients_ampl[7]);
+				HAL_UART_Transmit(&huart2, Coef, sizeof(Coef), 10);
+			}
+			else
+			{
+				sprintf((char*)DataAppr, "0#0#/0/0/ \n\r");
+				HAL_UART_Transmit(&huart2, DataAppr, sizeof(DataAppr), 10);
+			}
+		}
+	}
+	memset(RxBuffer, 0, sizeof(RxBuffer));
+	TransmitStatus = 1;
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) 
+{
+  while(TransmitStatus != 1)
+	TransmitStatus = 0;
+	ProcessUARTData();
+	HAL_UART_Receive_DMA(&huart2, RxBuffer, sizeof(RxBuffer)); 
 }
 
 /* USER CODE END 0 */
@@ -409,18 +429,16 @@ int main(void)
   MX_I2C3_Init();
   MX_ADC_Init();
   MX_USART2_UART_Init();
-	GPIOA->ODR&=~(Pins[7]);
   /* USER CODE BEGIN 2 */
 	ssd1306_Init(&hi2c3);
   // Write data to local screenbuffer
 	ssd1306_SetCursor(0,0);
-	ssd1306_WriteString("STOP",Font_16x26, White);
-	ssd1306_SetCursor(0, 12);
+	ssd1306_WriteString("Starting...",Font_16x26, White);
 
 	// Copy all data from local screenbuffer to the screen
 	ssd1306_UpdateScreen(&hi2c3);
 	ReadCoefficients();
-	ScanForDev();
+	//ScanForDev();
   //displayInfo();
 	statechart_init(&sc_handle); //inicializuoti busenu automata
 	statechart_enter(&sc_handle);
@@ -428,7 +446,7 @@ int main(void)
 	 {
 			//ErrorHandler();
 	 }
-
+	HAL_UART_Receive_DMA(&huart2, (uint8_t *)RxBuffer, sizeof(RxBuffer));
   /* USER CODE END 2 */
 
   /* Infinite loop */
