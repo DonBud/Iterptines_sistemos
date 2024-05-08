@@ -206,7 +206,6 @@ static void clear_in_events(Statechart* handle)
 {
 	handle->iface.Ev_GetSample_raised = bool_false;
 	handle->iface.Ev_ADCSampleReady_raised = bool_false;
-	handle->iface.Ev_ResetSample_raised = bool_false;
 	handle->iface.Ev_GoodSample_raised = bool_false;
 }
 
@@ -282,12 +281,6 @@ void statechart_raise_ev_GetSample(Statechart* handle)
 void statechart_raise_ev_ADCSampleReady(Statechart* handle)
 {
 	statechart_add_event_to_queue(&(handle->in_event_queue), Statechart_Ev_ADCSampleReady);
-	run_cycle(handle);
-}
-
-void statechart_raise_ev_ResetSample(Statechart* handle)
-{
-	statechart_add_event_to_queue(&(handle->in_event_queue), Statechart_Ev_ResetSample);
 	run_cycle(handle);
 }
 
@@ -563,22 +556,13 @@ static sc_integer main_region_SampleReadingADC_react(Statechart* handle, const s
 	{ 
 		if ((transitioned_after) < (0))
 		{ 
-			if (handle->iface.Ev_ResetSample_raised == bool_true)
+			if (handle->iface.Ev_GoodSample_raised == bool_true)
 			{ 
 				exseq_main_region_SampleReadingADC(handle);
-				enseq_main_region_SampleRequestedADC_default(handle);
-				react(handle,0);
+				statechart_internal_set_channel_no(handle, (handle->internal.channel_no + 1));
+				react_main_region__choice_0(handle);
 				transitioned_after = 0;
-			}  else
-			{
-				if (handle->iface.Ev_GoodSample_raised == bool_true)
-				{ 
-					exseq_main_region_SampleReadingADC(handle);
-					statechart_internal_set_channel_no(handle, (handle->internal.channel_no + 1));
-					react_main_region__choice_0(handle);
-					transitioned_after = 0;
-				} 
-			}
+			} 
 		} 
 		/* If no transition was taken */
 		if ((transitioned_after) == (transitioned_before))
@@ -711,11 +695,6 @@ static sc_boolean statechart_dispatch_event(Statechart* handle, const statechart
 		case Statechart_Ev_ADCSampleReady:
 		{
 			handle->iface.Ev_ADCSampleReady_raised = bool_true;
-			return bool_true;
-		}
-		case Statechart_Ev_ResetSample:
-		{
-			handle->iface.Ev_ResetSample_raised = bool_true;
 			return bool_true;
 		}
 		case Statechart_Ev_GoodSample:

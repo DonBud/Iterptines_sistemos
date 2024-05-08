@@ -99,7 +99,7 @@ def Send_Pin():
    serialData = ser.readline().decode('utf-8')
    print(serialData)
    serialCoeff = ser.readline()#.decode('utf-8')
-   print(serialCoeff[4:])
+   #print(serialCoeff[4:])
    serialCoeff = serialCoeff[4:].decode('utf-8')
    serialData = serialData.split('/')[0]
    ReadBlock = 0

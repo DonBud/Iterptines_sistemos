@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xmi:XMI xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:notation="http://www.eclipse.org/gmf/runtime/1.0.2/notation" xmlns:sgraph="http://www.yakindu.org/sct/sgraph/2.0.0">
-  <sgraph:Statechart xmi:id="_-Cu_sPwaEe6AmKa9vciwZg" specification="// Use the event driven execution model.&#xA;// Switch to cycle based behavior&#xA;// by specifying '@CycleBased(200)'.&#xA;@EventDriven&#xA;&#xA;// Use @SuperSteps(yes) to enable&#xA;// super step semantics.&#xA;@SuperSteps(no)&#xD;&#xA;&#xA;&#xA;interface:&#xA;&#x9;// Define events and variables here. &#xA;&#x9;// Use CTRL + Space for content assist.&#xA;&#x9;in event Ev_GetSample&#xA;&#x9;in event Ev_ADCSampleReady&#xA;&#x9;in event Ev_ResetSample&#xA;&#x9;in event Ev_GoodSample&#xA;&#x9;&#xA;&#x9;operation SendData()&#xA;&#x9;operation StartConvADC(channel:integer):integer&#xA;&#x9;operation ReadADCSample(channel:integer):integer&#xA;&#x9;operation ProcessData() // calculate parameters for display&#xA;&#x9;operation DisplayInfo() // display calculated parameters&#xA;&#x9;&#xA;&#x9;&#xA;internal:&#xA;&#x9;var channel_no:integer=0&#xA;&#x9;var sample_no:integer=0" name="Statechart">
+  <sgraph:Statechart xmi:id="_-Cu_sPwaEe6AmKa9vciwZg" specification="// Use the event driven execution model.&#xA;// Switch to cycle based behavior&#xA;// by specifying '@CycleBased(200)'.&#xA;@EventDriven&#xA;&#xA;// Use @SuperSteps(yes) to enable&#xA;// super step semantics.&#xA;@SuperSteps(no)&#xD;&#xA;&#xA;&#xA;interface:&#xA;&#x9;// Define events and variables here. &#xA;&#x9;// Use CTRL + Space for content assist.&#xA;&#x9;in event Ev_GetSample&#xA;&#x9;in event Ev_ADCSampleReady&#xA;&#x9;in event Ev_GoodSample&#xA;&#x9;&#xA;&#x9;operation SendData()&#xA;&#x9;operation StartConvADC(channel:integer):integer&#xA;&#x9;operation ReadADCSample(channel:integer):integer&#xA;&#x9;operation ProcessData() // calculate parameters for display&#xA;&#x9;operation DisplayInfo() // display calculated parameters&#xA;&#x9;&#xA;&#x9;&#xA;internal:&#xA;&#x9;var channel_no:integer=0&#xA;&#x9;var sample_no:integer=0" name="Statechart">
     <regions xmi:id="_M1EWIPwcEe6PKuc5AUI-PQ" name="main region">
       <vertices xsi:type="sgraph:Entry" xmi:id="_M1EWIfwcEe6PKuc5AUI-PQ">
         <outgoingTransitions xmi:id="_M1EWIvwcEe6PKuc5AUI-PQ" target="_M1EWI_wcEe6PKuc5AUI-PQ"/>
@@ -8,11 +8,10 @@
       <vertices xsi:type="sgraph:State" xmi:id="_M1EWI_wcEe6PKuc5AUI-PQ" specification="&#xD;&#xA;" name="WaitSamplePeriod" incomingTransitions="_M1EWIvwcEe6PKuc5AUI-PQ _M1OHIPwcEe6PKuc5AUI-PQ _M1OHKfwcEe6PKuc5AUI-PQ">
         <outgoingTransitions xmi:id="_PKZ10PwcEe6PKuc5AUI-PQ" specification="Ev_GetSample" target="_M1EWNPwcEe6PKuc5AUI-PQ"/>
       </vertices>
-      <vertices xsi:type="sgraph:State" xmi:id="_M1EWNPwcEe6PKuc5AUI-PQ" specification="entry / StartConvADC(channel_no)" name="SampleRequestedADC" incomingTransitions="_M1KcwvwcEe6PKuc5AUI-PQ _PKZ10PwcEe6PKuc5AUI-PQ _LiSNsPweEe6PKuc5AUI-PQ">
+      <vertices xsi:type="sgraph:State" xmi:id="_M1EWNPwcEe6PKuc5AUI-PQ" specification="entry / StartConvADC(channel_no)" name="SampleRequestedADC" incomingTransitions="_M1KcwvwcEe6PKuc5AUI-PQ _PKZ10PwcEe6PKuc5AUI-PQ">
         <outgoingTransitions xmi:id="_M1EWPfwcEe6PKuc5AUI-PQ" specification="Ev_ADCSampleReady" target="_M1EWQfwcEe6PKuc5AUI-PQ"/>
       </vertices>
       <vertices xsi:type="sgraph:State" xmi:id="_M1EWQfwcEe6PKuc5AUI-PQ" specification="entry / ReadADCSample(channel_no)" name="SampleReadingADC" incomingTransitions="_M1EWPfwcEe6PKuc5AUI-PQ">
-        <outgoingTransitions xmi:id="_LiSNsPweEe6PKuc5AUI-PQ" specification="Ev_ResetSample" target="_M1EWNPwcEe6PKuc5AUI-PQ"/>
         <outgoingTransitions xmi:id="_M1KcwPwcEe6PKuc5AUI-PQ" specification="Ev_GoodSample / &#xD;&#xA;channel_no=channel_no+1" target="_M1KcwfwcEe6PKuc5AUI-PQ"/>
       </vertices>
       <vertices xsi:type="sgraph:Choice" xmi:id="_M1KcwfwcEe6PKuc5AUI-PQ" incomingTransitions="_M1KcwPwcEe6PKuc5AUI-PQ">
@@ -260,17 +259,6 @@
       <bendpoints xsi:type="notation:RelativeBendpoints" xmi:id="_3CflMvwcEe6PKuc5AUI-PQ" points="[73, 19, 3, -14]$[73, 32, 3, -1]"/>
       <sourceAnchor xsi:type="notation:IdentityAnchor" xmi:id="_3CiogPwcEe6PKuc5AUI-PQ" id="(0.0,0.6792452830188679)"/>
       <targetAnchor xsi:type="notation:IdentityAnchor" xmi:id="_3CiogfwcEe6PKuc5AUI-PQ" id="(0.26666666666666666,0.0)"/>
-    </edges>
-    <edges xmi:id="_LiV4EPweEe6PKuc5AUI-PQ" type="Transition" element="_LiSNsPweEe6PKuc5AUI-PQ" source="_M09oo_wcEe6PKuc5AUI-PQ" target="_M09ol_wcEe6PKuc5AUI-PQ">
-      <children xsi:type="notation:DecorationNode" xmi:id="_LiV4FPweEe6PKuc5AUI-PQ" type="TransitionExpression">
-        <styles xsi:type="notation:ShapeStyle" xmi:id="_LiV4FfweEe6PKuc5AUI-PQ"/>
-        <layoutConstraint xsi:type="notation:Location" xmi:id="_LiV4FvweEe6PKuc5AUI-PQ" x="-5" y="14"/>
-      </children>
-      <styles xsi:type="notation:ConnectorStyle" xmi:id="_LiV4EfweEe6PKuc5AUI-PQ" routing="Rectilinear" lineColor="4210752"/>
-      <styles xsi:type="notation:FontStyle" xmi:id="_LiV4E_weEe6PKuc5AUI-PQ" fontName="Verdana"/>
-      <bendpoints xsi:type="notation:RelativeBendpoints" xmi:id="_LiV4EvweEe6PKuc5AUI-PQ" points="[10, -28, 2, 76]$[10, -80, 2, 24]"/>
-      <sourceAnchor xsi:type="notation:IdentityAnchor" xmi:id="_LiY7YPweEe6PKuc5AUI-PQ" id="(0.0,0.5405405405405406)"/>
-      <targetAnchor xsi:type="notation:IdentityAnchor" xmi:id="_LiY7YfweEe6PKuc5AUI-PQ" id="(0.03076923076923077,0.5471698113207547)"/>
     </edges>
   </notation:Diagram>
 </xmi:XMI>

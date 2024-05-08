@@ -303,9 +303,7 @@ void ProcessUARTData(void)
 	float Data = 0;
 	int i = 0;
 	int j = 0;
-	if(RxBuffer[0] == Asterisk)
-		__asm("NOP");
-	else if(RxBuffer[0] == NS)
+	if(RxBuffer[0] == NS)
 	{
 		char* token;
 		token = strtok((char*)RxBuffer, "/");
@@ -433,10 +431,10 @@ int main(void)
 	ssd1306_Init(&hi2c3);
   // Write data to local screenbuffer
 	ssd1306_SetCursor(0,0);
-	ssd1306_WriteString("Starting...",Font_16x26, White);
-
+	ssd1306_WriteString("Starting...",Font_11x18, White);
 	// Copy all data from local screenbuffer to the screen
 	ssd1306_UpdateScreen(&hi2c3);
+	GPIOA->ODR&=~(Pins[7]);
 	ReadCoefficients();
 	//ScanForDev();
   //displayInfo();

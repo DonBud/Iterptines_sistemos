@@ -67,7 +67,6 @@ typedef enum  {
 	Statechart_invalid_event = SC_INVALID_EVENT_VALUE,
 	Statechart_Ev_GetSample,
 	Statechart_Ev_ADCSampleReady,
-	Statechart_Ev_ResetSample,
 	Statechart_Ev_GoodSample
 } StatechartEventID;
 
@@ -106,7 +105,6 @@ struct StatechartIface
 {
 	sc_boolean Ev_GetSample_raised;
 	sc_boolean Ev_ADCSampleReady_raised;
-	sc_boolean Ev_ResetSample_raised;
 	sc_boolean Ev_GoodSample_raised;
 };
 
@@ -163,8 +161,6 @@ extern void statechart_trigger_without_event(Statechart* handle);
 extern void statechart_raise_ev_GetSample(Statechart* handle);
 /*! Raises the in event 'Ev_ADCSampleReady' that is defined in the default interface scope. */ 
 extern void statechart_raise_ev_ADCSampleReady(Statechart* handle);
-/*! Raises the in event 'Ev_ResetSample' that is defined in the default interface scope. */ 
-extern void statechart_raise_ev_ResetSample(Statechart* handle);
 /*! Raises the in event 'Ev_GoodSample' that is defined in the default interface scope. */ 
 extern void statechart_raise_ev_GoodSample(Statechart* handle);
 
